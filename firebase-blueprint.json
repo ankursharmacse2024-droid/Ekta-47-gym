@@ -1,0 +1,460 @@
+{
+  "entities": {
+    "FacilityProfile": {
+      "title": "FacilityProfile",
+      "description": "Facility owner/manager workspace configuration and seed status.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID"
+        },
+        "facilityName": {
+          "type": "string",
+          "description": "Gym facility display name"
+        },
+        "managerName": {
+          "type": "string",
+          "description": "Front-desk manager or owner name"
+        },
+        "seeded": {
+          "type": "boolean",
+          "description": "Whether initial facility roster has been initialized"
+        },
+        "dailyCheckInTarget": {
+          "type": "integer",
+          "description": "Target daily turnstile check-ins"
+        },
+        "activeRole": {
+          "type": "string",
+          "enum": ["ADMIN", "STAFF"],
+          "description": "Active workspace role for administrative clearance"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "userId",
+        "facilityName",
+        "managerName",
+        "seeded",
+        "dailyCheckInTarget",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GymMember": {
+      "title": "GymMember",
+      "description": "Commercial fitness member record with tier, plan snapshot, billing status, locker, and trainer assignment.",
+      "type": "object",
+      "properties": {
+        "memberCode": {
+          "type": "string",
+          "description": "Barcode / turnstile lookup ID (e.g. 1727)"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["BLACK_CARD", "PERFORMANCE", "FOUNDATION"]
+        },
+        "planId": {
+          "type": "string"
+        },
+        "planName": {
+          "type": "string"
+        },
+        "durationMonths": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "EXPIRING", "EXPIRED"]
+        },
+        "daysRemaining": {
+          "type": "integer"
+        },
+        "monthlyFeeCents": {
+          "type": "integer"
+        },
+        "lockerNumber": {
+          "type": "string"
+        },
+        "trainerName": {
+          "type": "string"
+        },
+        "profilePhotoUrl": {
+          "type": "string",
+          "description": "Firebase Storage HTTPS download URL for the member profile photo"
+        },
+        "profilePhotoPath": {
+          "type": "string",
+          "description": "Firebase Storage object path (e.g. members/{memberId}/profile/avatar_123.jpg)"
+        },
+        "accessEnabled": {
+          "type": "boolean"
+        },
+        "autoRenew": {
+          "type": "boolean"
+        },
+        "totalCheckIns": {
+          "type": "integer"
+        },
+        "lastCheckInAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "memberCode",
+        "fullName",
+        "phone",
+        "tier",
+        "status",
+        "daysRemaining",
+        "monthlyFeeCents",
+        "accessEnabled",
+        "autoRenew",
+        "totalCheckIns",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GymSettings": {
+      "title": "GymSettings",
+      "description": "Admin-controlled gym profile, branding, currency, and sequential member ID configuration.",
+      "type": "object",
+      "properties": {
+        "gymName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "logoPath": { "type": "string" },
+        "adminName": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "address": { "type": "string" },
+        "openingHours": { "type": "string" },
+        "currency": { "type": "string" },
+        "memberIdPrefix": { "type": "string" },
+        "startingMemberId": { "type": "integer" },
+        "nextMemberId": { "type": "integer" },
+        "idCardTagline": { "type": "string" },
+        "idCardShowLogo": { "type": "boolean" },
+        "idCardShowLocker": { "type": "boolean" },
+        "idCardShowCoach": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "MembershipPlan": {
+      "title": "MembershipPlan",
+      "description": "Admin-managed membership plan with duration in months and integer paise fee.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "durationMonths": { "type": "integer" },
+        "priceCents": { "type": "integer" },
+        "description": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "isDefault": { "type": "boolean" },
+        "sortOrder": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "NotificationSettings": {
+      "title": "NotificationSettings",
+      "description": "Expiry reminder rules and WhatsApp message templates.",
+      "type": "object",
+      "properties": {
+        "expiry15Days": { "type": "boolean" },
+        "expiry7Days": { "type": "boolean" },
+        "expiry3Days": { "type": "boolean" },
+        "expiry1Day": { "type": "boolean" },
+        "expiredReminder": { "type": "boolean" },
+        "whatsappEnabled": { "type": "boolean" },
+        "expiringTemplate": { "type": "string" },
+        "expiredTemplate": { "type": "string" },
+        "renewalTemplate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "PaymentSettings": {
+      "title": "PaymentSettings",
+      "description": "Accepted payment methods, UPI ID, UPI QR URL, and non-sensitive gateway instructions.",
+      "type": "object",
+      "properties": {
+        "acceptCash": { "type": "boolean" },
+        "acceptUpi": { "type": "boolean" },
+        "acceptOnline": { "type": "boolean" },
+        "upiId": { "type": "string" },
+        "upiQrCodeUrl": { "type": "string" },
+        "upiQrCodePath": { "type": "string" },
+        "paymentInstructions": { "type": "string" },
+        "onlinePaymentEnabled": { "type": "boolean" },
+        "onlineGatewayLabel": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "MembershipTransaction": {
+      "title": "MembershipTransaction",
+      "description": "Immutable historical snapshot of membership fees, discounts, and payment references.",
+      "type": "object",
+      "properties": {
+        "memberId": { "type": "string" },
+        "memberCode": { "type": "string" },
+        "memberName": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "durationMonths": { "type": "integer" },
+        "durationDays": { "type": "integer" },
+        "baseFeeCents": { "type": "integer" },
+        "discountCents": { "type": "integer" },
+        "chargedAmountCents": { "type": "integer" },
+        "paymentMethod": { "type": "string", "enum": ["CASH", "UPI", "ONLINE"] },
+        "transactionRef": { "type": "string" },
+        "transactionType": { "type": "string", "enum": ["NEW_MEMBERSHIP", "RENEWAL"] },
+        "startDateFormatted": { "type": "string" },
+        "expiryDateFormatted": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CheckInLog": {
+      "title": "CheckInLog",
+      "description": "Turnstile check-in telemetry entry.",
+      "type": "object",
+      "properties": {
+        "memberId": {
+          "type": "string"
+        },
+        "memberCode": {
+          "type": "string"
+        },
+        "memberName": {
+          "type": "string"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["BLACK_CARD", "PERFORMANCE", "FOUNDATION"]
+        },
+        "gateName": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["GRANTED", "WARNING", "DENIED"]
+        },
+        "note": {
+          "type": "string"
+        },
+        "checkedInAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "memberId",
+        "memberCode",
+        "memberName",
+        "tier",
+        "gateName",
+        "outcome",
+        "checkedInAt",
+        "createdAt"
+      ]
+    },
+    "TrainerProfile": {
+      "title": "TrainerProfile",
+      "description": "Elite coaching staff roster and floor session status.",
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "specialty": {
+          "type": "string"
+        },
+        "activeClients": {
+          "type": "integer"
+        },
+        "sessionsToday": {
+          "type": "integer"
+        },
+        "onFloor": {
+          "type": "boolean"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "fullName",
+        "specialty",
+        "activeClients",
+        "sessionsToday",
+        "onFloor",
+        "phone",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonthlyRevenueRecord": {
+      "title": "MonthlyRevenueRecord",
+      "description": "Historical monthly revenue, dues, and auto-pay snapshot for trend charts.",
+      "type": "object",
+      "properties": {
+        "monthKey": {
+          "type": "string",
+          "description": "YYYY-MM identifier (e.g. 2026-11)"
+        },
+        "monthLabel": {
+          "type": "string",
+          "description": "Short display label (e.g. Nov)"
+        },
+        "sortOrder": {
+          "type": "integer",
+          "description": "Chronological integer YYYYMM for Firestore orderBy"
+        },
+        "collectedCents": {
+          "type": "integer"
+        },
+        "outstandingCents": {
+          "type": "integer"
+        },
+        "autoPayCents": {
+          "type": "integer"
+        },
+        "activeMembers": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "monthKey",
+        "monthLabel",
+        "sortOrder",
+        "collectedCents",
+        "outstandingCents",
+        "autoPayCents",
+        "activeMembers",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/FacilityProfile"
+      },
+      "description": "Authenticated facility manager workspace profile."
+    },
+    "/users/{userId}/members/{memberId}": {
+      "schema": {
+        "$ref": "#/entities/GymMember"
+      },
+      "description": "Members belonging to the authenticated facility manager."
+    },
+    "/users/{userId}/gym_settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/GymSettings"
+      },
+      "description": "Admin-controlled gym profile, branding, currency, and sequential ID settings."
+    },
+    "/users/{userId}/membership_plans/{planId}": {
+      "schema": {
+        "$ref": "#/entities/MembershipPlan"
+      },
+      "description": "Dynamic admin-controlled membership plans and pricing."
+    },
+    "/users/{userId}/notification_settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/NotificationSettings"
+      },
+      "description": "Expiry reminders and WhatsApp template configuration."
+    },
+    "/users/{userId}/payment_settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/PaymentSettings"
+      },
+      "description": "Accepted payment modes, UPI ID, and QR code configuration."
+    },
+    "/users/{userId}/membership_transactions/{transactionId}": {
+      "schema": {
+        "$ref": "#/entities/MembershipTransaction"
+      },
+      "description": "Immutable historical ledger of member registrations and renewals."
+    },
+    "/users/{userId}/checkins/{checkinId}": {
+      "schema": {
+        "$ref": "#/entities/CheckInLog"
+      },
+      "description": "Turnstile check-in logs for the facility."
+    },
+    "/users/{userId}/trainers/{trainerId}": {
+      "schema": {
+        "$ref": "#/entities/TrainerProfile"
+      },
+      "description": "Trainers and floor coaching telemetry for the facility."
+    },
+    "/users/{userId}/revenue_history/{monthId}": {
+      "schema": {
+        "$ref": "#/entities/MonthlyRevenueRecord"
+      },
+      "description": "Historical monthly revenue and billing trend records."
+    }
+  }
+}

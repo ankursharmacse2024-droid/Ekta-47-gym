@@ -1,0 +1,484 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isWorkspaceAdmin(userId) {
+      return isOwner(userId) && (
+        !exists(/databases/$(database)/documents/users/$(userId)) ||
+        !('activeRole' in get(/databases/$(database)/documents/users/$(userId)).data) ||
+        get(/databases/$(database)/documents/users/$(userId)).data.activeRole == 'ADMIN'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidFacilityProfile(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.facilityName is string && data.facilityName.size() >= 1 && data.facilityName.size() <= 80 &&
+             data.managerName is string && data.managerName.size() >= 1 && data.managerName.size() <= 60 &&
+             data.seeded is bool &&
+             data.dailyCheckInTarget is int && data.dailyCheckInTarget >= 1 && data.dailyCheckInTarget <= 5000 &&
+             (!('activeRole' in data) || data.activeRole in ['ADMIN', 'STAFF']) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMember(data) {
+      return data.memberCode is string && data.memberCode.size() >= 3 && data.memberCode.size() <= 20 &&
+             data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 60 &&
+             data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 24 &&
+             data.tier in ['BLACK_CARD', 'PERFORMANCE', 'FOUNDATION'] &&
+             data.status in ['ACTIVE', 'EXPIRING', 'EXPIRED'] &&
+             data.daysRemaining is int && data.daysRemaining >= -365 && data.daysRemaining <= 3650 &&
+             data.monthlyFeeCents is int && data.monthlyFeeCents >= 0 && data.monthlyFeeCents <= 100000000 &&
+             data.accessEnabled is bool &&
+             data.autoRenew is bool &&
+             data.totalCheckIns is int && data.totalCheckIns >= 0 && data.totalCheckIns <= 100000 &&
+             (!('planId' in data) || (data.planId is string && data.planId.size() <= 128)) &&
+             (!('planName' in data) || (data.planName is string && data.planName.size() <= 80)) &&
+             (!('durationMonths' in data) || (data.durationMonths is int && data.durationMonths >= 0 && data.durationMonths <= 60)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
+             (!('lockerNumber' in data) || (data.lockerNumber is string && data.lockerNumber.size() <= 16)) &&
+             (!('trainerName' in data) || (data.trainerName is string && data.trainerName.size() <= 60)) &&
+             (!('profilePhotoUrl' in data) || (data.profilePhotoUrl is string && data.profilePhotoUrl.size() <= 1000 && !data.profilePhotoUrl.matches('^data:.*'))) &&
+             (!('profilePhotoPath' in data) || (data.profilePhotoPath is string && data.profilePhotoPath.size() <= 240)) &&
+             (!('lastCheckInAt' in data) || (data.lastCheckInAt is timestamp && data.lastCheckInAt <= request.time)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidGymSettings(data) {
+      return data.gymName is string && data.gymName.size() >= 1 && data.gymName.size() <= 100 &&
+             data.logoUrl is string && data.logoUrl.size() <= 1000 && !data.logoUrl.matches('^data:.*') &&
+             data.logoPath is string && data.logoPath.size() <= 240 &&
+             data.adminName is string && data.adminName.size() >= 1 && data.adminName.size() <= 60 &&
+             data.contactPhone is string && data.contactPhone.size() <= 30 &&
+             data.contactEmail is string && data.contactEmail.size() <= 120 &&
+             data.address is string && data.address.size() <= 240 &&
+             data.openingHours is string && data.openingHours.size() <= 120 &&
+             data.currency in ['INR', 'USD', 'EUR', 'GBP'] &&
+             data.memberIdPrefix is string && data.memberIdPrefix.size() <= 10 &&
+             data.startingMemberId is int && data.startingMemberId >= 1 && data.startingMemberId <= 99999999 &&
+             data.nextMemberId is int && data.nextMemberId >= 1 && data.nextMemberId <= 99999999 &&
+             data.idCardTagline is string && data.idCardTagline.size() <= 100 &&
+             data.idCardShowLogo is bool &&
+             data.idCardShowLocker is bool &&
+             data.idCardShowCoach is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMembershipPlan(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 60 &&
+             data.durationMonths is int && data.durationMonths >= 1 && data.durationMonths <= 60 &&
+             data.priceCents is int && data.priceCents >= 0 && data.priceCents <= 100000000 &&
+             data.description is string && data.description.size() <= 240 &&
+             data.isActive is bool &&
+             data.isDefault is bool &&
+             data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 10000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidNotificationSettings(data) {
+      return data.expiry15Days is bool &&
+             data.expiry7Days is bool &&
+             data.expiry3Days is bool &&
+             data.expiry1Day is bool &&
+             data.expiredReminder is bool &&
+             data.whatsappEnabled is bool &&
+             data.expiringTemplate is string && data.expiringTemplate.size() <= 500 &&
+             data.expiredTemplate is string && data.expiredTemplate.size() <= 500 &&
+             data.renewalTemplate is string && data.renewalTemplate.size() <= 500 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPaymentSettings(data) {
+      return data.acceptCash is bool &&
+             data.acceptUpi is bool &&
+             data.acceptOnline is bool &&
+             data.upiId is string && data.upiId.size() <= 120 &&
+             data.upiQrCodeUrl is string && data.upiQrCodeUrl.size() <= 1000 && !data.upiQrCodeUrl.matches('^data:.*') &&
+             data.upiQrCodePath is string && data.upiQrCodePath.size() <= 240 &&
+             data.paymentInstructions is string && data.paymentInstructions.size() <= 400 &&
+             data.onlinePaymentEnabled is bool &&
+             data.onlineGatewayLabel is string && data.onlineGatewayLabel.size() <= 100 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidTransaction(data) {
+      return isValidId(data.memberId) &&
+             data.memberCode is string && data.memberCode.size() >= 3 && data.memberCode.size() <= 20 &&
+             data.memberName is string && data.memberName.size() >= 2 && data.memberName.size() <= 60 &&
+             data.planId is string && data.planId.size() <= 128 &&
+             data.planName is string && data.planName.size() >= 2 && data.planName.size() <= 80 &&
+             data.durationMonths is int && data.durationMonths >= 1 && data.durationMonths <= 60 &&
+             data.durationDays is int && data.durationDays >= 1 && data.durationDays <= 3650 &&
+             data.baseFeeCents is int && data.baseFeeCents >= 0 && data.baseFeeCents <= 100000000 &&
+             data.discountCents is int && data.discountCents >= -100000000 && data.discountCents <= 100000000 &&
+             data.chargedAmountCents is int && data.chargedAmountCents >= 0 && data.chargedAmountCents <= 100000000 &&
+             data.paymentMethod in ['CASH', 'UPI', 'ONLINE'] &&
+             data.transactionRef is string && data.transactionRef.size() <= 120 &&
+             data.transactionType in ['NEW_MEMBERSHIP', 'RENEWAL'] &&
+             data.startDateFormatted is string && data.startDateFormatted.size() <= 40 &&
+             data.expiryDateFormatted is string && data.expiryDateFormatted.size() <= 40 &&
+             data.notes is string && data.notes.size() <= 240 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidCheckIn(data) {
+      return isValidId(data.memberId) &&
+             data.memberCode is string && data.memberCode.size() >= 3 && data.memberCode.size() <= 20 &&
+             data.memberName is string && data.memberName.size() >= 2 && data.memberName.size() <= 60 &&
+             data.tier in ['BLACK_CARD', 'PERFORMANCE', 'FOUNDATION'] &&
+             data.gateName is string && data.gateName.size() >= 2 && data.gateName.size() <= 40 &&
+             data.outcome in ['GRANTED', 'WARNING', 'DENIED'] &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 160)) &&
+             data.checkedInAt is timestamp && data.checkedInAt <= request.time &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidTrainer(data) {
+      return data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 60 &&
+             data.specialty is string && data.specialty.size() >= 2 && data.specialty.size() <= 60 &&
+             data.activeClients is int && data.activeClients >= 0 && data.activeClients <= 200 &&
+             data.sessionsToday is int && data.sessionsToday >= 0 && data.sessionsToday <= 50 &&
+             data.onFloor is bool &&
+             data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 24 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidRevenueRecord(data) {
+      return data.monthKey is string && data.monthKey.size() >= 6 && data.monthKey.size() <= 10 &&
+             data.monthLabel is string && data.monthLabel.size() >= 2 && data.monthLabel.size() <= 12 &&
+             data.sortOrder is int && data.sortOrder >= 200001 && data.sortOrder <= 209912 &&
+             data.collectedCents is int && data.collectedCents >= 0 && data.collectedCents <= 100000000 &&
+             data.outstandingCents is int && data.outstandingCents >= 0 && data.outstandingCents <= 100000000 &&
+             data.autoPayCents is int && data.autoPayCents >= 0 && data.autoPayCents <= 100000000 &&
+             data.activeMembers is int && data.activeMembers >= 0 && data.activeMembers <= 100000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'facilityName', 'managerName', 'seeded', 'dailyCheckInTarget', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'facilityName', 'managerName', 'seeded', 'dailyCheckInTarget', 'activeRole', 'createdAt', 'updatedAt']) &&
+                       isValidFacilityProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidFacilityProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['activeRole', 'updatedAt']) ||
+                         (
+                           isWorkspaceAdmin(userId) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['facilityName', 'managerName', 'seeded', 'dailyCheckInTarget', 'activeRole', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if isWorkspaceAdmin(userId) && isValidId(userId);
+
+      match /members/{memberId} {
+        allow get: if isOwner(userId) && isValidId(memberId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(memberId) &&
+                         incoming().keys().hasAll([
+                           'memberCode', 'fullName', 'phone', 'tier', 'status',
+                           'daysRemaining', 'monthlyFeeCents', 'accessEnabled',
+                           'autoRenew', 'totalCheckIns', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'memberCode', 'fullName', 'phone', 'tier', 'planId',
+                           'planName', 'durationMonths', 'status', 'daysRemaining',
+                           'monthlyFeeCents', 'accessEnabled', 'autoRenew',
+                           'totalCheckIns', 'email', 'lockerNumber', 'trainerName',
+                           'profilePhotoUrl', 'profilePhotoPath', 'lastCheckInAt',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMember(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(memberId) &&
+                         isValidMember(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['totalCheckIns', 'lastCheckInAt', 'updatedAt']) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'daysRemaining', 'tier', 'planId', 'planName', 'durationMonths', 'monthlyFeeCents', 'accessEnabled', 'autoRenew', 'updatedAt']) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly(['profilePhotoUrl', 'profilePhotoPath', 'updatedAt']) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly(['memberCode', 'fullName', 'phone', 'email', 'tier', 'planId', 'planName', 'durationMonths', 'status', 'daysRemaining', 'monthlyFeeCents', 'lockerNumber', 'trainerName', 'profilePhotoUrl', 'profilePhotoPath', 'accessEnabled', 'autoRenew', 'updatedAt'])
+                         );
+
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(memberId);
+      }
+
+      match /gym_settings/{settingId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isWorkspaceAdmin(userId) &&
+                         isValidId(settingId) &&
+                         incoming().keys().hasAll([
+                           'gymName', 'logoUrl', 'logoPath', 'adminName',
+                           'contactPhone', 'contactEmail', 'address', 'openingHours',
+                           'currency', 'memberIdPrefix', 'startingMemberId', 'nextMemberId',
+                           'idCardTagline', 'idCardShowLogo', 'idCardShowLocker', 'idCardShowCoach',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'gymName', 'logoUrl', 'logoPath', 'adminName',
+                           'contactPhone', 'contactEmail', 'address', 'openingHours',
+                           'currency', 'memberIdPrefix', 'startingMemberId', 'nextMemberId',
+                           'idCardTagline', 'idCardShowLogo', 'idCardShowLocker', 'idCardShowCoach',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidGymSettings(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(settingId) &&
+                         isValidGymSettings(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['nextMemberId', 'updatedAt']) ||
+                           (
+                             isWorkspaceAdmin(userId) &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'gymName', 'logoUrl', 'logoPath', 'adminName',
+                               'contactPhone', 'contactEmail', 'address', 'openingHours',
+                               'currency', 'memberIdPrefix', 'startingMemberId', 'nextMemberId',
+                               'idCardTagline', 'idCardShowLogo', 'idCardShowLocker', 'idCardShowCoach',
+                               'updatedAt'
+                             ])
+                           )
+                         );
+
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(settingId);
+      }
+
+      match /membership_plans/{planId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isWorkspaceAdmin(userId) &&
+                         isValidId(planId) &&
+                         incoming().keys().hasAll([
+                           'name', 'durationMonths', 'priceCents', 'description',
+                           'isActive', 'isDefault', 'sortOrder', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'name', 'durationMonths', 'priceCents', 'description',
+                           'isActive', 'isDefault', 'sortOrder', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMembershipPlan(incoming());
+
+        allow update: if isWorkspaceAdmin(userId) &&
+                         isValidId(planId) &&
+                         isValidMembershipPlan(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'durationMonths', 'priceCents', 'description',
+                           'isActive', 'isDefault', 'sortOrder', 'updatedAt'
+                         ]);
+
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(planId);
+      }
+
+      match /notification_settings/{settingId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isWorkspaceAdmin(userId) &&
+                         isValidId(settingId) &&
+                         incoming().keys().hasAll([
+                           'expiry15Days', 'expiry7Days', 'expiry3Days', 'expiry1Day',
+                           'expiredReminder', 'whatsappEnabled', 'expiringTemplate',
+                           'expiredTemplate', 'renewalTemplate', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'expiry15Days', 'expiry7Days', 'expiry3Days', 'expiry1Day',
+                           'expiredReminder', 'whatsappEnabled', 'expiringTemplate',
+                           'expiredTemplate', 'renewalTemplate', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidNotificationSettings(incoming());
+
+        allow update: if isWorkspaceAdmin(userId) &&
+                         isValidId(settingId) &&
+                         isValidNotificationSettings(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'expiry15Days', 'expiry7Days', 'expiry3Days', 'expiry1Day',
+                           'expiredReminder', 'whatsappEnabled', 'expiringTemplate',
+                           'expiredTemplate', 'renewalTemplate', 'updatedAt'
+                         ]);
+
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(settingId);
+      }
+
+      match /payment_settings/{settingId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isWorkspaceAdmin(userId) &&
+                         isValidId(settingId) &&
+                         incoming().keys().hasAll([
+                           'acceptCash', 'acceptUpi', 'acceptOnline', 'upiId',
+                           'upiQrCodeUrl', 'upiQrCodePath', 'paymentInstructions',
+                           'onlinePaymentEnabled', 'onlineGatewayLabel', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'acceptCash', 'acceptUpi', 'acceptOnline', 'upiId',
+                           'upiQrCodeUrl', 'upiQrCodePath', 'paymentInstructions',
+                           'onlinePaymentEnabled', 'onlineGatewayLabel', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidPaymentSettings(incoming());
+
+        allow update: if isWorkspaceAdmin(userId) &&
+                         isValidId(settingId) &&
+                         isValidPaymentSettings(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'acceptCash', 'acceptUpi', 'acceptOnline', 'upiId',
+                           'upiQrCodeUrl', 'upiQrCodePath', 'paymentInstructions',
+                           'onlinePaymentEnabled', 'onlineGatewayLabel', 'updatedAt'
+                         ]);
+
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(settingId);
+      }
+
+      match /membership_transactions/{txId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(txId) &&
+                         incoming().keys().hasAll([
+                           'memberId', 'memberCode', 'memberName', 'planId', 'planName',
+                           'durationMonths', 'durationDays', 'baseFeeCents', 'discountCents',
+                           'chargedAmountCents', 'paymentMethod', 'transactionRef',
+                           'transactionType', 'startDateFormatted', 'expiryDateFormatted',
+                           'notes', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'memberId', 'memberCode', 'memberName', 'planId', 'planName',
+                           'durationMonths', 'durationDays', 'baseFeeCents', 'discountCents',
+                           'chargedAmountCents', 'paymentMethod', 'transactionRef',
+                           'transactionType', 'startDateFormatted', 'expiryDateFormatted',
+                           'notes', 'createdAt'
+                         ]) &&
+                         isValidTransaction(incoming());
+
+        allow update: if false;
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(txId);
+      }
+
+      match /checkins/{checkinId} {
+        allow get: if isOwner(userId) && isValidId(checkinId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(checkinId) &&
+                         incoming().keys().hasAll([
+                           'memberId', 'memberCode', 'memberName', 'tier',
+                           'gateName', 'outcome', 'checkedInAt', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'memberId', 'memberCode', 'memberName', 'tier',
+                           'gateName', 'outcome', 'note', 'checkedInAt', 'createdAt'
+                         ]) &&
+                         isValidCheckIn(incoming());
+
+        allow update: if false;
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(checkinId);
+      }
+
+      match /trainers/{trainerId} {
+        allow get: if isOwner(userId) && isValidId(trainerId);
+        allow list: if isOwner(userId);
+
+        allow create: if isWorkspaceAdmin(userId) &&
+                         isValidId(trainerId) &&
+                         incoming().keys().hasAll([
+                           'fullName', 'specialty', 'activeClients',
+                           'sessionsToday', 'onFloor', 'phone', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'fullName', 'specialty', 'activeClients',
+                           'sessionsToday', 'onFloor', 'phone', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTrainer(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(trainerId) &&
+                         isValidTrainer(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['sessionsToday', 'onFloor', 'activeClients', 'updatedAt']) ||
+                           (
+                             isWorkspaceAdmin(userId) &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'specialty', 'activeClients', 'sessionsToday', 'onFloor', 'phone', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(trainerId);
+      }
+
+      match /revenue_history/{monthId} {
+        allow get: if isOwner(userId) && isValidId(monthId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(monthId) &&
+                         incoming().keys().hasAll([
+                           'monthKey', 'monthLabel', 'sortOrder', 'collectedCents',
+                           'outstandingCents', 'autoPayCents', 'activeMembers',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'monthKey', 'monthLabel', 'sortOrder', 'collectedCents',
+                           'outstandingCents', 'autoPayCents', 'activeMembers',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidRevenueRecord(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(monthId) &&
+                         isValidRevenueRecord(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().monthKey == existing().monthKey &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'monthLabel', 'sortOrder', 'collectedCents',
+                           'outstandingCents', 'autoPayCents', 'activeMembers', 'updatedAt'
+                         ]);
+
+        allow delete: if isWorkspaceAdmin(userId) && isValidId(monthId);
+      }
+    }
+  }
+}

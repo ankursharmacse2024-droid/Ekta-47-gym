@@ -1,0 +1,8 @@
+{
+  "name": "Remix EKTA 47 GYM",
+  "description": "EKTA 47 GYM \u0026 FITNESS CENTRE (Since 1986) management app for turnstile check-ins, member dues, revenue trends, and trainer telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,69 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Global default-deny safety net
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidImageUpload() {
+      return request.resource != null &&
+             request.resource.size > 0 &&
+             request.resource.size <= 5 * 1024 * 1024 &&
+             request.resource.contentType != null &&
+             request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
+             request.resource.metadata != null &&
+             request.resource.metadata.ownerUid == request.auth.uid;
+    }
+
+    // Member profile photos stored under members/{memberId}/profile/{fileName}
+    match /members/{memberId}/profile/{fileName} {
+      allow read: if isSignedIn() &&
+                     isValidId(memberId) &&
+                     resource != null &&
+                     resource.metadata != null &&
+                     resource.metadata.ownerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(memberId) &&
+                       isValidImageUpload();
+
+      allow update: if isSignedIn() &&
+                       isValidId(memberId) &&
+                       resource != null &&
+                       resource.metadata != null &&
+                       resource.metadata.ownerUid == request.auth.uid &&
+                       isValidImageUpload();
+
+      allow delete: if isSignedIn() &&
+                       isValidId(memberId) &&
+                       resource != null &&
+                       resource.metadata != null &&
+                       resource.metadata.ownerUid == request.auth.uid;
+    }
+
+    // Gym logo and UPI QR uploads scoped to authenticated owner under gym/{userId}/{folder}/{fileName}
+    match /gym/{userId}/{folder}/{fileName} {
+      allow read: if isSignedIn() &&
+                     request.auth.uid == userId &&
+                     folder in ['branding', 'payments'];
+
+      allow create, update: if isSignedIn() &&
+                               request.auth.uid == userId &&
+                               folder in ['branding', 'payments'] &&
+                               isValidImageUpload();
+
+      allow delete: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       folder in ['branding', 'payments'];
+    }
+  }
+}
